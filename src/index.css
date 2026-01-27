@@ -6,58 +6,58 @@
 
 @layer base {
   :root {
-    --background: 220 20% 7%;
-    --foreground: 210 20% 92%;
+    --background: 0 0% 0%;
+    --foreground: 0 0% 100%;
 
-    --card: 220 18% 10%;
-    --card-foreground: 210 20% 92%;
+    --card: 0 0% 3%;
+    --card-foreground: 0 0% 100%;
 
-    --popover: 220 18% 10%;
-    --popover-foreground: 210 20% 92%;
+    --popover: 0 0% 3%;
+    --popover-foreground: 0 0% 100%;
 
-    --primary: 185 100% 50%;
-    --primary-foreground: 220 20% 7%;
+    --primary: 0 0% 100%;
+    --primary-foreground: 0 0% 0%;
 
-    --secondary: 220 15% 15%;
-    --secondary-foreground: 210 20% 85%;
+    --secondary: 0 0% 10%;
+    --secondary-foreground: 0 0% 100%;
 
-    --muted: 220 15% 18%;
-    --muted-foreground: 215 15% 55%;
+    --muted: 0 0% 12%;
+    --muted-foreground: 0 0% 60%;
 
-    --accent: 185 100% 50%;
-    --accent-foreground: 220 20% 7%;
+    --accent: 0 0% 15%;
+    --accent-foreground: 0 0% 100%;
 
-    --destructive: 0 75% 55%;
-    --destructive-foreground: 210 40% 98%;
+    --destructive: 0 0% 30%;
+    --destructive-foreground: 0 0% 100%;
 
-    --success: 142 70% 45%;
-    --success-foreground: 220 20% 7%;
+    --success: 0 0% 100%;
+    --success-foreground: 0 0% 0%;
 
-    --warning: 38 92% 50%;
-    --warning-foreground: 220 20% 7%;
+    --warning: 0 0% 100%;
+    --warning-foreground: 0 0% 0%;
 
-    --border: 220 15% 18%;
-    --input: 220 15% 15%;
-    --ring: 185 100% 50%;
+    --border: 0 0% 20%;
+    --input: 0 0% 20%;
+    --ring: 0 0% 100%;
 
     --radius: 0.75rem;
 
-    --editor-bg: 220 18% 8%;
-    --editor-line: 220 15% 12%;
-    --editor-selection: 185 100% 50% / 0.15;
+    --editor-bg: 0 0% 5%;
+    --editor-line: 0 0% 10%;
+    --editor-selection: 0 0% 100% / 0.15;
     
-    --glow-primary: 0 0 20px hsl(185 100% 50% / 0.4);
-    --glow-success: 0 0 20px hsl(142 70% 45% / 0.4);
-    --glow-error: 0 0 20px hsl(0 75% 55% / 0.4);
+    --glow-primary: 0 0 20px hsl(0 0% 100% / 0.2);
+    --glow-success: 0 0 20px hsl(0 0% 100% / 0.2);
+    --glow-error: 0 0 20px hsl(0 0% 100% / 0.2);
 
-    --sidebar-background: 220 18% 10%;
-    --sidebar-foreground: 210 20% 92%;
-    --sidebar-primary: 185 100% 50%;
-    --sidebar-primary-foreground: 220 20% 7%;
-    --sidebar-accent: 220 15% 15%;
-    --sidebar-accent-foreground: 210 20% 92%;
-    --sidebar-border: 220 15% 18%;
-    --sidebar-ring: 185 100% 50%;
+    --sidebar-background: 0 0% 3%;
+    --sidebar-foreground: 0 0% 100%;
+    --sidebar-primary: 0 0% 100%;
+    --sidebar-primary-foreground: 0 0% 0%;
+    --sidebar-accent: 0 0% 10%;
+    --sidebar-accent-foreground: 0 0% 100%;
+    --sidebar-border: 0 0% 20%;
+    --sidebar-ring: 0 0% 100%;
   }
 
   .dark {

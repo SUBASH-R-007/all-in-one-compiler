@@ -28,54 +28,39 @@ export function useCodeExecution() {
 
     try {
       const config = languageConfig[language];
-      
-      const response = await fetch("https://emkc.org/api/v2/piston/execute", {
+
+      const response = await fetch("http://localhost:5000/compile", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          language: config.language,
-          version: config.version,
-          files: [
-            {
-              name: language === "java" ? "Main.java" : `main.${language === "python" ? "py" : language}`,
-              content: code,
-            },
-          ],
+          language: language,
+          code: code,
         }),
       });
 
       if (!response.ok) {
-        throw new Error("Failed to execute code. Please try again.");
+        throw new Error("Failed to execute code. Please check if the local server is running.");
       }
 
       const data = await response.json();
       const executionTime = Date.now() - startTime;
 
-      if (data.run) {
-        const output = data.run.stdout || "";
-        const error = data.run.stderr || "";
-        const exitCode = data.run.code;
-
-        if (exitCode !== 0 && error) {
-          setResult({ output: "", error, executionTime });
-          toast.error("Code execution failed");
-        } else {
-          setResult({ 
-            output: output || (error ? "" : "Program executed successfully with no output."), 
-            error: error && exitCode !== 0 ? error : "",
-            executionTime 
-          });
-          if (!error || exitCode === 0) {
-            toast.success("Code executed successfully!");
-          }
-        }
-      } else if (data.compile && data.compile.stderr) {
-        setResult({ output: "", error: data.compile.stderr, executionTime: Date.now() - startTime });
-        toast.error("Compilation failed");
+      if (data.error && !data.output) {
+        // Runtime or compilation error only
+        setResult({ output: "", error: data.error, executionTime });
+        toast.error("Code execution failed");
       } else {
-        throw new Error("Unexpected response from server");
+        // Success or output with error (warnings or partial run)
+        setResult({
+          output: data.output || (data.error ? "" : "Program executed successfully with no output."),
+          error: data.error || "",
+          executionTime
+        });
+        if (!data.error) {
+          toast.success("Code executed successfully!");
+        }
       }
     } catch (error) {
       const executionTime = Date.now() - startTime;
