@@ -15,7 +15,7 @@ const Login = () => {
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
         if (teamName.trim() && password.trim()) {
-            login(teamName);
+            login(teamName, password);
         }
     };
 

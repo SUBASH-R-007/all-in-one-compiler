@@ -1,5 +1,5 @@
 import { Link, useNavigate } from "react-router-dom";
-import { Code2, Terminal, Cpu, Database, ArrowRight, CheckCircle2, User as UserIcon, LogOut, Check, Calendar, MapPin } from "lucide-react";
+import { Code2, Terminal, Cpu, Database, ArrowRight, CheckCircle2, User as UserIcon, LogOut, Check, Calendar, MapPin, HelpCircle, Box, FileText } from "lucide-react";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -7,41 +7,25 @@ import { useAuth } from "@/context/AuthContext";
 import PixelBlast from "@/component/PixelBlast";
 import CardNav from "@/component/CardNav";
 import logo from "./logo.svg";
+import { useTasks } from "@/context/TaskContext";
 
-const tasks = [
-  {
-    id: 1,
-    title: "Basic Input/Output",
-    description: "Write a program that accepts user input and prints it back to the console with a greeting.",
-    difficulty: "Easy",
-    icon: <Terminal className="w-6 h-6 text-green-400" />,
-    points: 10
-  },
-  {
-    id: 2,
-    title: "Data Processing",
-    description: "Create a function to calculate the average of a list of numbers provided in the input.",
-    difficulty: "Medium",
-    icon: <Database className="w-6 h-6 text-blue-400" />,
-    points: 20
-  },
-  {
-    id: 3,
-    title: "Algorithm Design",
-    description: "Implement the Bubble Sort algorithm to sort an array of integers in ascending order.",
-    difficulty: "Hard",
-    icon: <Cpu className="w-6 h-6 text-purple-400" />,
-    points: 30
-  },
-  {
-    id: 4,
-    title: "Complex Logic",
-    description: "Solve the N-Queens problem or find the shortest path in a weighted graph.",
-    difficulty: "Expert",
-    icon: <Code2 className="w-6 h-6 text-orange-400" />,
-    points: 50
+// Helper to get icon based on difficulty/type
+const getTaskIcon = (difficulty: string, type: string) => {
+  if (type === 'debugging') return <CheckCircle2 className="w-6 h-6 text-red-400" />;
+  if (type === 'riddle') return <HelpCircle className="w-6 h-6 text-yellow-400" />;
+  if (type === 'blackbox') return <Box className="w-6 h-6 text-indigo-400" />;
+  if (type === 'case-study') return <FileText className="w-6 h-6 text-pink-400" />;
+
+  switch (difficulty) {
+    case "Easy": return <Terminal className="w-6 h-6 text-green-400" />;
+    case "Medium": return <Database className="w-6 h-6 text-blue-400" />;
+    case "Hard": return <Cpu className="w-6 h-6 text-purple-400" />;
+    case "Expert": return <Code2 className="w-6 h-6 text-orange-400" />;
+    default: return <Code2 className="w-6 h-6 text-primary" />;
   }
-];
+};
+
+
 
 const navItems = [
   {
@@ -76,6 +60,7 @@ const navItems = [
 
 const Index = () => {
   const { user, isAuthenticated, logout } = useAuth();
+  const { tasks } = useTasks();
   const navigate = useNavigate();
 
   return (
@@ -155,16 +140,27 @@ const Index = () => {
 
           <div className="flex justify-center gap-4">
             <Button size="lg" className="rounded-full px-8 bg-white text-black hover:bg-white/90" asChild>
-              <Link to="/login">
-                Start Task <Code2 className="ml-2 w-4 h-4" />
+              <Link to={isAuthenticated ? "#tasks" : "/login"}>
+                {isAuthenticated ? "Solve Problems" : "Start Task"} <Code2 className="ml-2 w-4 h-4" />
               </Link>
             </Button>
+
+            {isAuthenticated && (
+              <Button
+                size="lg"
+                variant="outline"
+                className="rounded-full px-8 border-red-500/50 text-red-400 hover:bg-red-950/30 hover:text-red-300 backdrop-blur-sm"
+                onClick={logout}
+              >
+                Log Out <LogOut className="ml-2 w-4 h-4" />
+              </Button>
+            )}
           </div>
         </div>
       </section>
 
       {/* Tasks Grid */}
-      <section className="flex-1 container mx-auto px-4 py-12">
+      <section id="tasks" className="flex-1 container mx-auto px-4 py-12">
         <h2 className="text-2xl font-bold mb-8 flex items-center gap-2">
           <CheckCircle2 className="w-6 h-6 text-primary" />
           Available Tasks
@@ -172,13 +168,15 @@ const Index = () => {
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {tasks.map((task) => {
-            const isCompleted = user?.completedTasks.includes(task.id);
+            const isCompleted = user?.completedTasks?.includes(task.id);
+            const icon = getTaskIcon(task.difficulty, task.type);
+
             return (
               <Card key={task.id} className={`group hover:shadow-lg transition-all duration-300 border-border/50 hover:border-primary/50 bg-card/50 backdrop-blur-sm ${isCompleted ? "border-primary/20 bg-primary/5" : ""}`}>
                 <CardHeader>
                   <div className="flex justify-between items-start">
                     <div className="p-3 rounded-xl bg-background/50 border border-border/50 group-hover:scale-110 transition-transform">
-                      {task.icon}
+                      {icon}
                     </div>
                     <div className="flex gap-2">
                       {isCompleted && (
@@ -186,6 +184,13 @@ const Index = () => {
                           Completed <Check className="w-3 h-3 ml-1" />
                         </Badge>
                       )}
+
+                      {task.type !== "coding" && (
+                        <Badge variant="outline" className="px-3 capitalize border-primary/50 text-foreground">
+                          {task.type.replace('-', ' ')}
+                        </Badge>
+                      )}
+
                       <Badge variant="secondary" className="px-3">
                         {task.difficulty}
                       </Badge>
@@ -202,12 +207,18 @@ const Index = () => {
                   </div>
                 </CardContent>
                 <CardFooter>
-                  <Button className="w-full group/btn" asChild variant={isCompleted ? "outline" : "default"}>
-                    <Link to={`/compiler?task=${task.id}`}>
-                      {isCompleted ? "Practice Again" : "Start Challenge"}
-                      <ArrowRight className="ml-2 w-4 h-4 group-hover/btn:translate-x-1 transition-transform" />
-                    </Link>
-                  </Button>
+                  {isCompleted ? (
+                    <Button className="w-full" variant="outline" disabled>
+                      Access Locked <Check className="ml-2 w-4 h-4" />
+                    </Button>
+                  ) : (
+                    <Button className="w-full group/btn" asChild variant="default">
+                      <Link to={`/compiler?task=${task.id}`}>
+                        Start Challenge
+                        <ArrowRight className="ml-2 w-4 h-4 group-hover/btn:translate-x-1 transition-transform" />
+                      </Link>
+                    </Button>
+                  )}
                 </CardFooter>
               </Card>
             )

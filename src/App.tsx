@@ -8,7 +8,9 @@ import Compiler from "./pages/Compiler";
 import NotFound from "./pages/NotFound";
 
 import Login from "./pages/Login";
+import Admin from "./pages/Admin";
 import { AuthProvider } from "./context/AuthContext";
+import { TaskProvider } from "./context/TaskContext";
 
 const queryClient = new QueryClient();
 
@@ -19,13 +21,16 @@ const App = () => (
       <Sonner />
       <BrowserRouter>
         <AuthProvider>
-          <Routes>
-            <Route path="/" element={<Index />} />
-            <Route path="/login" element={<Login />} />
-            <Route path="/compiler" element={<Compiler />} />
-            {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
-            <Route path="*" element={<NotFound />} />
-          </Routes>
+          <TaskProvider>
+            <Routes>
+              <Route path="/" element={<Index />} />
+              <Route path="/login" element={<Login />} />
+              <Route path="/compiler" element={<Compiler />} />
+              <Route path="/admin" element={<Admin />} />
+              {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
+              <Route path="*" element={<NotFound />} />
+            </Routes>
+          </TaskProvider>
         </AuthProvider>
       </BrowserRouter>
     </TooltipProvider>
