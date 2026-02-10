@@ -16,9 +16,28 @@ import { useTasks } from "@/context/TaskContext";
 const Compiler = () => {
     const [searchParams] = useSearchParams();
     const taskId = searchParams.get("task");
-    const { user, updateProgress, submitTask } = useAuth();
+    const { user, updateProgress, submitTask, isAuthenticated, isAdmin } = useAuth();
     const navigate = useNavigate();
     const { tasks } = useTasks();
+
+    // Redirect to login if not authenticated
+    useEffect(() => {
+        if (!isAuthenticated) {
+            navigate("/login");
+            return;
+        }
+        // Redirect admins to admin panel - they shouldn't access tasks
+        if (isAdmin) {
+            toast.error("Admin users cannot access tasks");
+            navigate("/admin");
+            return;
+        }
+    }, [isAuthenticated, isAdmin, navigate]);
+
+    // Don't render anything if not authenticated or is admin
+    if (!isAuthenticated || isAdmin) {
+        return null;
+    }
 
     const [language, setLanguage] = useState<Language>("python");
     const [code, setCode] = useState(codeTemplates.python);
@@ -27,6 +46,125 @@ const Compiler = () => {
     const [isTaskStarted, setIsTaskStarted] = useState(false);
     const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
     const [isFullscreen, setIsFullscreen] = useState(false);
+
+    // Copy-paste prevention
+    useEffect(() => {
+        // Show warning message when component mounts
+        setTimeout(() => {
+            toast.warning("⚠️ Copy-paste, right-click, and developer tools are disabled during the challenge!", {
+                duration: 5000,
+            });
+        }, 100);
+
+        const preventCopyPaste = (e: KeyboardEvent) => {
+            // Prevent Ctrl+C, Ctrl+V, Ctrl+X, Ctrl+A, Ctrl+Z, Ctrl+Y
+            if (e.ctrlKey && (
+                e.key === 'c' || e.key === 'C' ||
+                e.key === 'v' || e.key === 'V' ||
+                e.key === 'x' || e.key === 'X' ||
+                e.key === 'a' || e.key === 'A' ||
+                e.key === 'z' || e.key === 'Z' ||
+                e.key === 'y' || e.key === 'Y'
+            )) {
+                e.preventDefault();
+                toast.error("Copy-paste operations are disabled during the challenge!");
+                return false;
+            }
+
+            // Prevent F12, Ctrl+Shift+I, Ctrl+Shift+J, Ctrl+U
+            if (
+                e.key === 'F12' ||
+                (e.ctrlKey && e.shiftKey && (e.key === 'I' || e.key === 'i')) ||
+                (e.ctrlKey && e.shiftKey && (e.key === 'J' || e.key === 'j')) ||
+                (e.ctrlKey && (e.key === 'U' || e.key === 'u'))
+            ) {
+                e.preventDefault();
+                toast.error("Developer tools are disabled during the challenge!");
+                return false;
+            }
+        };
+
+        const preventContextMenu = (e: MouseEvent) => {
+            e.preventDefault();
+            toast.error("Right-click is disabled during the challenge!");
+            return false;
+        };
+
+        const preventSelectAll = (e: Event) => {
+            e.preventDefault();
+            return false;
+        };
+
+        // Add event listeners
+        document.addEventListener('keydown', preventCopyPaste);
+        document.addEventListener('contextmenu', preventContextMenu);
+        document.addEventListener('selectstart', preventSelectAll);
+
+        // Disable clipboard API - only if not already disabled
+        const originalClipboard = navigator.clipboard;
+        let clipboardOverridden = false;
+
+        try {
+            // Check if clipboard is already overridden by checking a custom property
+            if (!(navigator.clipboard as any)?.__disabled) {
+                Object.defineProperty(navigator, 'clipboard', {
+                    value: {
+                        writeText: () => {
+                            toast.error("Clipboard access is disabled during the challenge!");
+                            return Promise.reject(new Error('Clipboard disabled'));
+                        },
+                        readText: () => {
+                            toast.error("Clipboard access is disabled during the challenge!");
+                            return Promise.reject(new Error('Clipboard disabled'));
+                        },
+                        __disabled: true // Mark as disabled
+                    },
+                    configurable: true, // Allow it to be reconfigured
+                    writable: false
+                });
+                clipboardOverridden = true;
+            }
+        } catch (error) {
+            console.warn('Could not override clipboard:', error);
+        }
+
+        // Cleanup function
+        return () => {
+            document.removeEventListener('keydown', preventCopyPaste);
+            document.removeEventListener('contextmenu', preventContextMenu);
+            document.removeEventListener('selectstart', preventSelectAll);
+
+            // Restore clipboard only if we overrode it
+            if (clipboardOverridden) {
+                try {
+                    Object.defineProperty(navigator, 'clipboard', {
+                        value: originalClipboard,
+                        configurable: true,
+                        writable: true
+                    });
+                } catch (error) {
+                    // Ignore errors when restoring clipboard
+                }
+            }
+        };
+    }, []);
+
+    // Disable drag and drop
+    useEffect(() => {
+        const preventDragDrop = (e: DragEvent) => {
+            e.preventDefault();
+            toast.error("Drag and drop is disabled during the challenge!");
+            return false;
+        };
+
+        document.addEventListener('dragover', preventDragDrop);
+        document.addEventListener('drop', preventDragDrop);
+
+        return () => {
+            document.removeEventListener('dragover', preventDragDrop);
+            document.removeEventListener('drop', preventDragDrop);
+        };
+    }, []);
 
     // Find current task (Round)
     const currentTask = tasks.find(t => t.id === Number(taskId));
@@ -53,6 +191,15 @@ const Compiler = () => {
     // Load question content
     useEffect(() => {
         if (currentTask && currentQuestion) {
+            // Show randomization notice on first question
+            if (currentQuestionIndex === 0 && questions.length > 1) {
+                setTimeout(() => {
+                    toast.info("📝 Questions are randomized for each team to ensure fairness", {
+                        duration: 4000,
+                    });
+                }, 500);
+            }
+
             // Determine initial code base
             let initialCode = "";
 
@@ -93,20 +240,30 @@ const Compiler = () => {
         }
     };
 
-    // Timer State
+    // Timer State - Per Question
     const [startTime, setStartTime] = useState<number | null>(null);
     const [elapsedTime, setElapsedTime] = useState(0);
 
-    // Initial load check for timer
+    // Reset timer when question changes
     useEffect(() => {
-        if (taskId) {
-            const savedStart = localStorage.getItem(`startTime_${taskId}`);
+        if (isTaskStarted && currentQuestion) {
+            const questionKey = `startTime_${taskId}_q${currentQuestionIndex}`;
+            const savedStart = localStorage.getItem(questionKey);
+
             if (savedStart) {
+                // Resume existing timer for this question
                 setStartTime(Number(savedStart));
-                setIsTaskStarted(true);
+            } else {
+                // Start new timer for this question
+                const now = Date.now();
+                setStartTime(now);
+                localStorage.setItem(questionKey, now.toString());
+                toast.info(`Timer started for Question ${currentQuestionIndex + 1}`);
             }
+
+            setElapsedTime(0);
         }
-    }, [taskId]);
+    }, [currentQuestionIndex, isTaskStarted, taskId, currentQuestion]);
 
     // Timer Interval
     useEffect(() => {
@@ -131,10 +288,8 @@ const Compiler = () => {
     const handleStartTask = () => {
         toggleFullScreen();
         setIsTaskStarted(true);
-        const now = Date.now();
-        setStartTime(now);
-        localStorage.setItem(`startTime_${taskId}`, now.toString());
-        toast.success("Round Started! Timer running. Fullscreen mode enabled.");
+        // Timer will be started automatically by the useEffect when question loads
+        toast.success("Round Started! Fullscreen mode enabled.");
     };
 
     const handleRun = () => {
@@ -143,7 +298,20 @@ const Compiler = () => {
     };
 
     const handleSubmit = async () => {
-        if (!taskId) return;
+        if (!taskId) {
+            toast.error("No task ID found!");
+            return;
+        }
+
+        if (!currentTask) {
+            toast.error("Task not found!");
+            return;
+        }
+
+        if (!currentQuestion) {
+            toast.error("Question not found!");
+            return;
+        }
 
         if (isTextTask) {
             if (!code.trim()) {
@@ -161,32 +329,45 @@ const Compiler = () => {
         // Timer Calculation
         const duration = startTime ? Date.now() - startTime : 0;
 
-        // Submit to Backend
-        if (currentTask) {
+        try {
+            // Submit to Backend - convert questionId to string
+            const questionIdStr = currentQuestion.id ? String(currentQuestion.id) : undefined;
+
+
             await submitTask({
                 taskId: currentTask.id,
-                questionId: currentQuestion?.id,
+                questionId: questionIdStr,
                 code: code,
                 language: isTextTask ? 'text' : language,
                 status: 'Submitted',
                 duration: duration
             });
-        }
 
-        toast.success(`Question ${currentQuestionIndex + 1} Submitted!`);
+            toast.success(`Question ${currentQuestionIndex + 1} Submitted!`);
 
-        // Move to next question if available
-        if (currentQuestionIndex < questions.length - 1) {
-            setCurrentQuestionIndex(prev => prev + 1);
-        } else {
-            // Round Complete
-            updateProgress(Number(taskId), currentTask?.points || 10);
+            // Move to next question if available
+            if (currentQuestionIndex < questions.length - 1) {
+                // Clear current question timer
+                const currentQuestionKey = `startTime_${taskId}_q${currentQuestionIndex}`;
+                localStorage.removeItem(currentQuestionKey);
 
-            // Clear Timer
-            localStorage.removeItem(`startTime_${taskId}`);
+                // Move to next question (timer will auto-start via useEffect)
+                setCurrentQuestionIndex(prev => prev + 1);
+            } else {
+                // Round Complete
+                await updateProgress(Number(taskId), currentTask?.points || 10);
 
-            toast.success("Round Completed! 🎉");
-            setTimeout(() => navigate("/"), 1500);
+                // Clear all question timers for this task
+                for (let i = 0; i < questions.length; i++) {
+                    localStorage.removeItem(`startTime_${taskId}_q${i}`);
+                }
+
+                toast.success("Round Completed! 🎉");
+                setTimeout(() => navigate("/"), 1500);
+            }
+        } catch (error) {
+            console.error("Submission error:", error);
+            toast.error("Failed to submit. Please try again.");
         }
     };
 
@@ -222,7 +403,7 @@ const Compiler = () => {
                         <ul className="list-disc pl-5 space-y-1.5">
                             <li>Full screen mode is mandatory.</li>
                             <li>No switching tabs allowed.</li>
-                            <li>Complete all {questions.length} questions to finish the round.</li>
+                            <li>Complete your allocated {questions.length === 1 ? 'question' : `${questions.length} questions`} to finish the round.</li>
                         </ul>
                     </div>
                     <Button onClick={handleStartTask} size="lg" className="w-full font-semibold text-lg h-12 shadow-lg shadow-primary/20">
@@ -234,7 +415,7 @@ const Compiler = () => {
     }
 
     return (
-        <div className="min-h-screen bg-background flex flex-col">
+        <div className="min-h-screen bg-background flex flex-col no-select no-drag">
             <Toaster position="top-right" theme="dark" />
 
             {/* Header */}
@@ -250,8 +431,11 @@ const Compiler = () => {
                                 <h1 className="text-lg font-bold text-foreground flex items-center gap-2">
                                     {currentTask?.title}
                                 </h1>
-                                <p className="text-xs text-muted-foreground">
+                                <p className="text-xs text-muted-foreground flex items-center gap-2">
                                     Question {currentQuestionIndex + 1} of {questions.length}
+                                    <span className="px-2 py-0.5 bg-purple-500/10 border border-purple-500/20 rounded text-purple-400 text-[10px]">
+                                        RANDOMIZED
+                                    </span>
                                 </p>
                             </div>
                         </div>
@@ -261,6 +445,12 @@ const Compiler = () => {
                             <div className="flex items-center gap-2 bg-secondary/20 p-1 px-3 rounded-lg font-mono text-sm text-primary border border-primary/20">
                                 <Clock className="w-4 h-4" />
                                 {formatTime(elapsedTime)}
+                            </div>
+
+                            {/* Anti-cheat indicator */}
+                            <div className="flex items-center gap-2 bg-red-500/10 p-1 px-3 rounded-lg text-xs text-red-400 border border-red-500/20">
+                                <div className="w-2 h-2 bg-red-500 rounded-full animate-pulse"></div>
+                                SECURE MODE
                             </div>
 
                             <div className="flex items-center gap-2 bg-secondary/20 p-1 rounded-lg">

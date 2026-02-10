@@ -69,9 +69,17 @@ const Login = () => {
                     >
                         Start Challenge <Zap className="w-4 h-4 ml-2 fill-current" />
                     </Button>
-                    <p className="text-xs text-center text-muted-foreground">
-                        Don't have credentials? <span className="text-primary cursor-pointer hover:underline">Contact Event Organizers</span>
-                    </p>
+                    <div className="flex flex-col gap-2 text-center">
+                        <p className="text-xs text-muted-foreground">
+                            Don't have credentials? <span className="text-primary cursor-pointer hover:underline">Contact Event Organizers</span>
+                        </p>
+                        <Link 
+                            to="/admin-login" 
+                            className="text-xs text-orange-500 hover:text-orange-600 hover:underline transition-colors"
+                        >
+                           
+                        </Link>
+                    </div>
                 </CardFooter>
             </Card>
         </div>

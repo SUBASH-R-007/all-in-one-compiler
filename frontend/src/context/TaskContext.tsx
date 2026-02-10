@@ -1,5 +1,6 @@
 import { createContext, useContext, useState, useEffect, ReactNode } from "react";
 import { v4 as uuidv4 } from 'uuid';
+import { useAuth } from "./AuthContext";
 
 export interface Question {
     id: string;
@@ -91,22 +92,51 @@ const defaultTasks: Task[] = [
             {
                 id: "r4-q1",
                 content: "Techception is launching a new AI compiler. Pitch a marketing strategy to reach 1 million users in 6 months."
+            },
+            {
+                id: "r4-q2",
+                content: "Design a scalable architecture for a real-time collaborative code editor (like Google Docs for code) that supports 100+ concurrent users per document. Discuss data consistency, conflict resolution, and server infrastructure."
+            },
+            {
+                id: "r4-q3",
+                content: "A healthcare startup wants to use AI to diagnose skin conditions from user-uploaded photos. Outline the ethical considerations, privacy safeguards, and technical pipeline for this application."
+            },
+            {
+                id: "r4-q4",
+                content: "Design a smart traffic management system for a congested city using IoT sensors and AI. How would you optimize traffic light timings to reduce average commute time by 20%? Discuss the edge vs. cloud computing trade-offs."
+            },
+            {
+                id: "r4-q5",
+                content: "You are building a decentralized voting system for a national election using blockchain, addressing the challenges of voter anonymity, vote verification, and prevention of coercion."
+            },
+            {
+                id: "r4-q6",
+                content: "Pitch a gamified learning platform for teaching quantum computing concepts to high school students. Describe the core gameplay loop, retention strategies, and technical stack."
             }
         ]
     }
 ];
 
 export const TaskProvider = ({ children }: { children: ReactNode }) => {
+    const { user } = useAuth();
     const [tasks, setTasks] = useState<Task[]>([]);
 
     useEffect(() => {
         const fetchTasks = async () => {
             try {
-                const res = await fetch('http://localhost:5000/api/tasks');
+                // Use user-specific endpoint if user is logged in, otherwise use general endpoint
+                const endpoint = user?.username
+                    ? `http://localhost:5000/api/tasks/user/${encodeURIComponent(user.username)}`
+                    : 'http://localhost:5000/api/tasks';
+
+                console.log('Fetching tasks from:', endpoint);
+
+                const res = await fetch(endpoint);
                 if (!res.ok) throw new Error("Failed to fetch");
                 const data = await res.json();
 
                 if (Array.isArray(data) && data.length > 0) {
+                    console.log(`Loaded ${data.length} tasks${user?.username ? ' with shuffled questions for ' + user.username : ''}`);
                     setTasks(data);
                 } else {
                     console.log("No tasks found, seeding defaults...");
@@ -146,7 +176,7 @@ export const TaskProvider = ({ children }: { children: ReactNode }) => {
         };
 
         fetchTasks();
-    }, []);
+    }, [user?.username]); // Re-fetch when user changes
 
     const addTask = async (newTask: Omit<Task, "id">) => {
         try {

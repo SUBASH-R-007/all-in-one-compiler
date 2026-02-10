@@ -8,11 +8,13 @@ interface User {
     email: string;
     completedTasks: number[];
     xp: number;
+    isAdmin?: boolean;
 }
 
 export interface RegisteredUser {
     _id: string;
     username: string;
+    email: string;
     password: string;
     createdAt?: string;
     xp: number;
@@ -22,13 +24,15 @@ export interface RegisteredUser {
 interface AuthContextType {
     user: User | null;
     login: (username: string, password?: string) => Promise<void>;
+    adminLogin: (password: string) => Promise<void>;
     logout: () => void;
     updateProgress: (taskId: number, xp: number) => void;
     submitTask: (submission: { taskId: number, questionId?: string, code: string, language?: string, status?: string, duration?: number }) => Promise<void>;
     isAuthenticated: boolean;
+    isAdmin: boolean;
     // Admin features
     registeredUsers: RegisteredUser[];
-    registerUser: (username: string) => void;
+    registerUser: (username: string, email: string) => void;
     deleteUser: (username: string) => void;
 }
 
@@ -65,29 +69,20 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         fetchUsers();
     }, []);
 
-    const generatePassword = () => {
-        const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
-        let pass = "";
-        for (let i = 0; i < 8; i++) {
-            pass += chars.charAt(Math.floor(Math.random() * chars.length));
-        }
-        return pass;
-    };
-
-    const registerUser = async (username: string) => {
-        const password = generatePassword();
-
+    const registerUser = async (username: string, email: string) => {
         try {
             const res = await fetch(`${API_URL}/api/register`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ username, password })
+                body: JSON.stringify({ username, email })
             });
 
             const data = await res.json();
 
             if (!res.ok) {
-                toast.error(data.error || "Failed to register team");
+                setTimeout(() => {
+                    toast.error(data.error || "Failed to register team");
+                }, 0);
                 return;
             }
 
@@ -98,9 +93,21 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
                 setRegisteredUsers(usersData);
             }
 
-            toast.success(`Team registered! Password: ${password}`);
+            if (data.emailSent) {
+                setTimeout(() => {
+                    toast.success(`Team "${username}" registered successfully! Credentials sent to ${email}`);
+                }, 0);
+            } else {
+                setTimeout(() => {
+                    toast.warning(`Team "${username}" registered but email failed to send. Please provide credentials manually.`);
+                }, 0);
+            }
+
         } catch (error) {
-            toast.error("Network error registration failed");
+            console.error(error);
+            setTimeout(() => {
+                toast.error("Registration failed due to network error");
+            }, 0);
         }
     };
 
@@ -112,18 +119,26 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
             if (res.ok) {
                 setRegisteredUsers(prev => prev.filter(u => u.username !== username));
-                toast.success("Team removed");
+                setTimeout(() => {
+                    toast.success("Team removed");
+                }, 0);
             } else {
-                toast.error("Failed to delete team");
+                setTimeout(() => {
+                    toast.error("Failed to delete team");
+                }, 0);
             }
         } catch (error) {
-            toast.error("Network error deleting team");
+            setTimeout(() => {
+                toast.error("Network error deleting team");
+            }, 0);
         }
     };
 
     const login = async (username: string, password?: string) => {
         if (!password) {
-            toast.error("Password is required");
+            setTimeout(() => {
+                toast.error("Password is required");
+            }, 0);
             return;
         }
 
@@ -137,26 +152,67 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             const data = await res.json();
 
             if (!res.ok) {
-                toast.error(data.error || "Login failed");
+                setTimeout(() => {
+                    toast.error(data.error || "Login failed");
+                }, 0);
                 return;
             }
 
             const userData = data.user;
             setUser(userData);
             localStorage.setItem("user", JSON.stringify(userData));
-            toast.success(`Welcome back, ${userData.username}!`);
+            setTimeout(() => {
+                toast.success(`Welcome back, ${userData.username}!`);
+            }, 0);
             navigate("/");
 
         } catch (error) {
             console.error(error);
-            toast.error("Login failed due to network error");
+            setTimeout(() => {
+                toast.error("Login failed due to network error");
+            }, 0);
+        }
+    };
+
+    const adminLogin = async (password: string) => {
+        try {
+            const res = await fetch(`${API_URL}/api/admin/login`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ password })
+            });
+
+            const data = await res.json();
+
+            if (!res.ok) {
+                setTimeout(() => {
+                    toast.error(data.error || "Admin login failed");
+                }, 0);
+                return;
+            }
+
+            const userData = data.user;
+            setUser(userData);
+            localStorage.setItem("user", JSON.stringify(userData));
+            setTimeout(() => {
+                toast.success("Welcome, Admin!");
+            }, 0);
+            navigate("/admin");
+
+        } catch (error) {
+            console.error(error);
+            setTimeout(() => {
+                toast.error("Admin login failed due to network error");
+            }, 0);
         }
     };
 
     const logout = () => {
         setUser(null);
         localStorage.removeItem("user");
-        toast.info("Logged out successfully");
+        setTimeout(() => {
+            toast.info("Logged out successfully");
+        }, 0);
         navigate("/login");
     };
 
@@ -176,21 +232,41 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         localStorage.setItem("user", JSON.stringify(updatedUser)); // Update session
 
         try {
-            await fetch(`${API_URL}/api/progress`, {
+            const response = await fetch(`${API_URL}/api/progress`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ username: user.username, taskId, xp })
             });
-            toast.success(`Task Completed! You earned ${xp} XP!`);
+            
+            if (response.ok) {
+                setTimeout(() => {
+                    toast.success(`Task Completed! You earned ${xp} XP!`);
+                }, 0);
+            } else {
+                const errorText = await response.text();
+                console.error("Progress update failed:", errorText);
+                setTimeout(() => {
+                    toast.error("Failed to update progress");
+                }, 0);
+            }
         } catch (error) {
             console.error("Failed to sync progress", error);
+            setTimeout(() => {
+                toast.error("Network error updating progress");
+            }, 0);
         }
     };
 
     const submitTask = async (submission: { taskId: number, questionId?: string, code: string, language?: string, status?: string, duration?: number }) => {
-        if (!user) return;
+        if (!user) {
+            console.error("No user found for submission");
+            return;
+        }
+        
+        console.log("Submitting task:", { username: user.username, ...submission });
+        
         try {
-            await fetch(`${API_URL}/api/submissions`, {
+            const response = await fetch(`${API_URL}/api/submissions`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
@@ -198,8 +274,26 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
                     ...submission
                 })
             });
+            
+            if (response.ok) {
+                const result = await response.json();
+                console.log("Submission successful:", result);
+                // Move toast to a setTimeout to avoid setState during render
+                setTimeout(() => {
+                    toast.success("Solution submitted successfully!");
+                }, 0);
+            } else {
+                const errorText = await response.text();
+                console.error("Submission failed:", errorText);
+                setTimeout(() => {
+                    toast.error("Failed to submit solution");
+                }, 0);
+            }
         } catch (error) {
             console.error("Failed to submit task", error);
+            setTimeout(() => {
+                toast.error("Network error during submission");
+            }, 0);
         }
     };
 
@@ -207,10 +301,12 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         <AuthContext.Provider value={{
             user,
             login,
+            adminLogin,
             logout,
             updateProgress,
             submitTask, // Export this
             isAuthenticated: !!user,
+            isAdmin: !!user?.isAdmin,
             registeredUsers,
             registerUser,
             deleteUser

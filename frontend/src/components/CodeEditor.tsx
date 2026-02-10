@@ -26,6 +26,17 @@ export function CodeEditor({ code, onChange, language }: CodeEditorProps) {
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    // Prevent copy-paste operations
+    if (e.ctrlKey && (
+      e.key === 'c' || e.key === 'C' ||
+      e.key === 'v' || e.key === 'V' ||
+      e.key === 'x' || e.key === 'X' ||
+      e.key === 'a' || e.key === 'A'
+    )) {
+      e.preventDefault();
+      return;
+    }
+
     if (e.key === "Tab") {
       e.preventDefault();
       const start = e.currentTarget.selectionStart;
@@ -69,9 +80,17 @@ export function CodeEditor({ code, onChange, language }: CodeEditorProps) {
           onChange={(e) => onChange(e.target.value)}
           onScroll={handleScroll}
           onKeyDown={handleKeyDown}
+          onContextMenu={(e) => e.preventDefault()}
+          onCopy={(e) => e.preventDefault()}
+          onPaste={(e) => e.preventDefault()}
+          onCut={(e) => e.preventDefault()}
           spellCheck={false}
-          className="code-textarea w-full h-full p-4 text-foreground placeholder:text-muted-foreground/50 scrollbar-thin"
+          className="code-textarea w-full h-full p-4 text-foreground placeholder:text-muted-foreground/50 scrollbar-thin no-select"
           placeholder={`// Start coding in ${language}...`}
+          autoComplete="off"
+          data-gramm="false"
+          data-gramm_editor="false"
+          data-enable-grammarly="false"
         />
       </div>
     </div>

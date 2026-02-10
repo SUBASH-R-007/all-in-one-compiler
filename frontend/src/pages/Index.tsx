@@ -59,7 +59,7 @@ const navItems = [
 ];
 
 const Index = () => {
-  const { user, isAuthenticated, logout } = useAuth();
+  const { user, isAuthenticated, isAdmin, logout } = useAuth();
   const { tasks } = useTasks();
   const navigate = useNavigate();
 
@@ -113,7 +113,16 @@ const Index = () => {
         </div>
         <div className="container mx-auto max-w-5xl my-8 relative z-10 text-center">
           <Badge variant="outline" className="mb-4 px-4 py-1 border-white/30 text-white uppercase tracking-wider bg-white/10 backdrop-blur-sm">
-            {isAuthenticated ? `Welcome back, ${user?.username}` : "Coder's Playground"}
+            {isAuthenticated ? (
+              <span className="flex items-center gap-2">
+                Welcome back, {user?.username}
+                {isAdmin && (
+                  <span className="px-2 py-0.5 bg-orange-500/20 border border-orange-500/30 rounded text-xs">
+                    ADMIN
+                  </span>
+                )}
+              </span>
+            ) : "Coder's Playground"}
           </Badge>
           <div className="flex justify-center mb-8">
             <img
@@ -144,6 +153,14 @@ const Index = () => {
                 {isAuthenticated ? "Solve Problems" : "Start Task"} <Code2 className="ml-2 w-4 h-4" />
               </Link>
             </Button>
+
+            {isAdmin && (
+              <Button size="lg" variant="outline" className="rounded-full px-8 border-orange-500/50 text-orange-400 hover:bg-orange-950/30 hover:text-orange-300 backdrop-blur-sm" asChild>
+                <Link to="/admin">
+                  Admin Panel <ArrowRight className="ml-2 w-4 h-4" />
+                </Link>
+              </Button>
+            )}
 
             {isAuthenticated && (
               <Button
@@ -229,7 +246,7 @@ const Index = () => {
       {/* Footer */}
       <footer className="border-t border-border mt-auto py-8">
         <div className="container mx-auto px-4 text-center text-sm text-muted-foreground">
-          <p>© 2024 CodeRunner. All rights reserved.</p>
+          <p>InovX REC</p>
         </div>
       </footer>
     </div>
