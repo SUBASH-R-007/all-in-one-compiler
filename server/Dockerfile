@@ -1,12 +1,12 @@
-FROM ubuntu:20.04
+FROM node:18-alpine
 
-ENV DEBIAN_FRONTEND=noninteractive
+WORKDIR /app
 
-RUN apt-get update && apt-get install -y \
-    gcc \
-    g++ \
-    openjdk-11-jdk-headless \
-    python3 \
-    && rm -rf /var/lib/apt/lists/*
+COPY package*.json ./
+RUN npm install
 
-WORKDIR /code
+COPY . .
+
+EXPOSE 3000
+
+CMD ["node", "index.js"]
