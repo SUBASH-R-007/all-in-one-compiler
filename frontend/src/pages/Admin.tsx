@@ -56,7 +56,7 @@ const Admin = () => {
     useEffect(() => {
         const fetchActivities = async () => {
             try {
-                const res = await fetch('http://localhost:5000/api/activities');
+                const res = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/activities`);
                 if (res.ok) {
                     const data = await res.json();
                     setActivities(data);
@@ -68,7 +68,7 @@ const Admin = () => {
 
         const fetchAllSubmissions = async () => {
             try {
-                const res = await fetch('http://localhost:5000/api/submissions');
+                const res = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/submissions`);
                 if (res.ok) {
                     const data = await res.json();
                     setAllSubmissions(data);
@@ -80,7 +80,7 @@ const Admin = () => {
 
         const fetchLeaderboard = async () => {
             try {
-                const res = await fetch('http://localhost:5000/api/users');
+                const res = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/users`);
                 if (res.ok) {
                     const data = await res.json();
                     setLeaderboardUsers(data);
@@ -92,7 +92,7 @@ const Admin = () => {
 
         const fetchQuestionOrders = async () => {
             try {
-                const res = await fetch('http://localhost:5000/api/question-orders');
+                const res = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/question-orders`);
                 if (res.ok) {
                     const data = await res.json();
                     setQuestionOrders(data);
@@ -130,7 +130,7 @@ const Admin = () => {
         if (viewingUser) {
             const fetchSubmissions = async () => {
                 try {
-                    const res = await fetch(`http://localhost:5000/api/submissions/${viewingUser}`);
+                    const res = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/submissions/${viewingUser}`);
                     if (res.ok) {
                         const data = await res.json();
                         setUserSubmissions(data);
@@ -707,14 +707,14 @@ const Admin = () => {
                                     size="sm"
                                     onClick={async () => {
                                         try {
-                                            const res = await fetch('http://localhost:5000/api/test-activity', {
+                                            const res = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/test-activity`, {
                                                 method: 'POST',
                                                 headers: { 'Content-Type': 'application/json' }
                                             });
                                             if (res.ok) {
                                                 toast.success("Test activity created!");
                                                 // Refresh activities
-                                                const activitiesRes = await fetch('http://localhost:5000/api/activities');
+                                                const activitiesRes = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/activities`);
                                                 if (activitiesRes.ok) {
                                                     const data = await activitiesRes.json();
                                                     setActivities(data);
@@ -908,7 +908,7 @@ const Admin = () => {
                                                 if (isNaN(xp)) return toast.error("Invalid XP amount");
 
                                                 try {
-                                                    const res = await fetch('http://localhost:5000/api/admin/award-xp', {
+                                                    const res = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/admin/award-xp`, {
                                                         method: 'POST',
                                                         headers: { 'Content-Type': 'application/json' },
                                                         body: JSON.stringify({

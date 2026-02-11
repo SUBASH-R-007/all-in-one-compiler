@@ -38,7 +38,7 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-const API_URL = "http://localhost:5000";
+const API_URL = import.meta.env.VITE_API_BASE_URL;
 
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
     const [user, setUser] = useState<User | null>(null);
@@ -237,7 +237,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ username: user.username, taskId, xp })
             });
-            
+
             if (response.ok) {
                 setTimeout(() => {
                     toast.success(`Task Completed! You earned ${xp} XP!`);
@@ -262,9 +262,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             console.error("No user found for submission");
             return;
         }
-        
+
         console.log("Submitting task:", { username: user.username, ...submission });
-        
+
         try {
             const response = await fetch(`${API_URL}/api/submissions`, {
                 method: "POST",
@@ -274,7 +274,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
                     ...submission
                 })
             });
-            
+
             if (response.ok) {
                 const result = await response.json();
                 console.log("Submission successful:", result);
