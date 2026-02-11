@@ -290,6 +290,13 @@ app.get('/api/tasks/user/:username', async (req, res) => {
                     return taskObj;
                 }
 
+                // SKIP AUTOMATIC ALLOCATION FOR TASK 2 (DEBUG ROUND) IF NO ORDER EXISTS
+                if (task.id === 2) {
+                    console.log(`Skipping auto-allocation for Task 2 (Debug Round) - waiting for language selection`);
+                    taskObj.questions = [];
+                    return taskObj;
+                }
+
                 const validQuestions = taskObj.questions.filter(q => {
                     const isValid = q && q.id;
                     if (!isValid) {
@@ -304,18 +311,36 @@ app.get('/api/tasks/user/:username', async (req, res) => {
                     return taskObj;
                 }
 
-                // Pick a random question
-                const randomIndex = Math.floor(Math.random() * validQuestions.length);
-                const selectedQuestion = validQuestions[randomIndex];
+                // Determine how many questions to allocate
+                let questionsToAllocate = 1;
+                if (task.id === 1) {
+                    questionsToAllocate = 2; // Allocate 2 riddles for Round 1
+                }
+
+                // select unique random questions
+                const selectedQuestionIds = [];
+                const availableIndices = Array.from({ length: validQuestions.length }, (_, i) => i);
+
+                // Shuffle indices to pick random ones
+                for (let i = availableIndices.length - 1; i > 0; i--) {
+                    const j = Math.floor(Math.random() * (i + 1));
+                    [availableIndices[i], availableIndices[j]] = [availableIndices[j], availableIndices[i]];
+                }
+
+                // Take first N indices
+                const count = Math.min(questionsToAllocate, validQuestions.length);
+                for (let i = 0; i < count; i++) {
+                    selectedQuestionIds.push(validQuestions[availableIndices[i]].id.toString());
+                }
 
                 userOrder = new UserQuestionOrder({
                     username,
                     taskId: task.id,
-                    questionOrder: [selectedQuestion.id.toString()] // Store only one question ID
+                    questionOrder: selectedQuestionIds
                 });
 
                 await userOrder.save();
-                console.log(`✓ Allocated question ${selectedQuestion.id} to user ${username} for task ${task.id}`);
+                console.log(`✓ Allocated question(s) ${selectedQuestionIds.join(', ')} to user ${username} for task ${task.id} (Auto)`);
             } else {
                 console.log(`User ${username} already has allocation for task ${task.id}: ${userOrder.questionOrder.join(', ')}`);
             }
@@ -341,6 +366,86 @@ app.get('/api/tasks/user/:username', async (req, res) => {
         res.json(shuffledTasks);
     } catch (err) {
         console.error('Error fetching shuffled tasks:', err);
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// Manual Question Allocation (For Language Selection in Round 2)
+app.post('/api/allocate-question', async (req, res) => {
+    const { username, taskId, language } = req.body;
+
+    if (!username || !taskId || !language) {
+        return res.status(400).json({ error: "Username, taskId, and language are required" });
+    }
+
+    try {
+        // Check if allocation already exists
+        const existingOrder = await UserQuestionOrder.findOne({ username, taskId });
+        if (existingOrder) {
+            return res.status(400).json({ error: "Question already allocated for this task" });
+        }
+
+        const task = await Task.findOne({ id: taskId });
+        if (!task) {
+            return res.status(404).json({ error: "Task not found" });
+        }
+
+        let prefix = "";
+        let langCode = "";
+
+        // Determine prefix based on language
+        if (language.toLowerCase() === 'python') {
+            prefix = "DP";
+            langCode = "python";
+        } else if (language.toLowerCase() === 'c') {
+            prefix = "DC";
+            langCode = "c";
+        } else if (language.toLowerCase() === 'java') {
+            prefix = "DJ";
+            langCode = "java";
+        } else {
+            return res.status(400).json({ error: "Invalid language selection" });
+        }
+
+        // Filter valid questions matching the prefix
+        const validQuestions = task.questions.filter(q =>
+            q && q.id && q.id.startsWith(prefix)
+        );
+
+        if (validQuestions.length === 0) {
+            return res.status(404).json({ error: `No questions found for language ${language} (Prefix: ${prefix})` });
+        }
+
+        // Randomly select one question
+        const randomIndex = Math.floor(Math.random() * validQuestions.length);
+        const selectedQuestion = validQuestions[randomIndex];
+
+        // Save allocation
+        const userOrder = new UserQuestionOrder({
+            username,
+            taskId,
+            questionOrder: [selectedQuestion.id]
+        });
+
+        await userOrder.save();
+        console.log(`✓ Manually allocated ${selectedQuestion.id} to ${username} for task ${taskId} (${language})`);
+
+        // Log activity
+        await new Activity({
+            username,
+            action: "SELECTED_LANGUAGE",
+            taskId,
+            details: `Selected ${language} for Round 2 and got assigned question ${selectedQuestion.id}`
+        }).save();
+
+        res.json({
+            message: "Question allocated successfully",
+            questionId: selectedQuestion.id,
+            language: langCode
+        });
+
+    } catch (err) {
+        console.error('Error allocating question:', err);
         res.status(500).json({ error: err.message });
     }
 });
@@ -381,12 +486,16 @@ app.post('/api/tasks/:taskId/questions', async (req, res) => {
         if (!task) return res.status(404).json({ error: "Task not found" });
 
         // Generate a unique ID for the question
-        const questionNumber = task.questions.length + 1;
-        const questionId = `r${task.id}-q${questionNumber}`;
+        // Check if ID is provided in body (for bulk upload) or generate one
+        let questionId = req.body.id;
+        if (!questionId) {
+            const questionNumber = task.questions.length + 1;
+            questionId = `r${task.id}-q${questionNumber}`;
+        }
 
         const newQuestion = {
-            id: questionId,
-            ...req.body
+            ...req.body,
+            id: questionId
         };
 
         task.questions.push(newQuestion);
@@ -406,7 +515,7 @@ app.delete('/api/tasks/:taskId/questions/:questionId', async (req, res) => {
         const task = await Task.findOne({ id: req.params.taskId });
         if (!task) return res.status(404).json({ error: "Task not found" });
 
-        task.questions = task.questions.filter(q => q._id.toString() !== req.params.questionId);
+        task.questions = task.questions.filter(q => q._id.toString() !== req.params.questionId && q.id !== req.params.questionId);
         await task.save();
         res.json(task);
     } catch (err) {
